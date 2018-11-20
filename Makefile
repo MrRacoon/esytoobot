@@ -10,4 +10,4 @@ freeze:
 	pip3 freeze > requirements.txt
 
 start:
-	python3 src/starabot.py
+	python3 src/esytoobot.py
