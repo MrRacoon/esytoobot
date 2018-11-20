@@ -1,4 +1,4 @@
-.PHONY = build freeze start
+.PHONY = activate build freeze start
 
 activate:
 	. ./env/bin/activate
