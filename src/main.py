@@ -28,7 +28,7 @@ class EsyTooBot(sc2.BotAI):
             (self.game_info.map_size[1], self.game_info.map_size[0], 3),
             np.uint8
         )
-        draw_buildings(self, game_data)
+        # draw_buildings(self, game_data)
         draw_units(self, game_data)
 
         # flip horizontally to make our final fix in visual representation:
