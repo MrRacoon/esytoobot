@@ -1,43 +1,48 @@
 import sc2
 from sc2 import run_game, maps, Race, Difficulty
 from sc2.player import Bot, Computer
-from draw.buildings import draw_buildings
-from draw.units import draw_units
-from draw.strategies import workerRush
-import cv2
-import numpy as np
+from draw.main import render
+from strategies import workerRush
 
 
+# The bot is described here.
+#
+# If we'll want to run bots against eachother, it's important to have this be
+# exported.
+#
 class EsyTooBot(sc2.BotAI):
     def __init__(self):
         self.ITERATIONS_PER_MINUTE = 165
         self.MAX_WORKERS = 50
 
+    # This is the function that gets run everytime starcraft asks us what we
+    # want to do next. The on_step function runs from top to bottom, so the most
+    # important functiions go at the top.
+    #
+    # Initially, let's make sure we have a decent macro before we can afford to
+    # spend time worrying about the micro. Therefore, we'll prioritize mineral
+    # collection, and since we're protoss for now (and likely for as long as we
+    # want to keep winning), we'll need to find time to collect gas for mid to
+    # late game.
+    #
     async def on_step(self, iteration):
-        await self.intel()
+        await render(self)
         if iteration == 0:
             await workerRush(self)
 
-    async def intel(self):
-        # https://github.com/Dentosal/python-sc2/blob/master/sc2/game_info.py#L162
-        # print(self.game_info.map_size)
 
-        # flip around. It's y, x when you're dealing with an array.
-        game_data = np.zeros(
-            (self.game_info.map_size[1], self.game_info.map_size[0], 3),
-            np.uint8
-        )
-        # draw_buildings(self, game_data)
-        draw_units(self, game_data)
-
-        # flip horizontally to make our final fix in visual representation:
-        flipped = cv2.flip(game_data, 0)
-        resized = cv2.resize(flipped, dsize=None, fx=4, fy=4)
-
-        cv2.imshow('Overview', resized)
-        cv2.waitKey(1)
-
-
+# Running this python file start a single game. This function is responsible for
+# creating the game at a high level.
+#
+# The first argument describes what map we're going to play on (and that map
+# better be available in your 'Starcraft 2' folder).
+#
+# The second argument describes the players. Our bot, and a computer.
+#
+# The third argument is for whether we want the game to run in realtime. It's
+# fun to whatch with this set to True, but when it's time to run a TON of these
+# games at once, we'll want to speed them up by making this False.
+#
 run_game(
     maps.get("(2)DreamcatcherLE"),
     [Bot(Race.Protoss, EsyTooBot()),
