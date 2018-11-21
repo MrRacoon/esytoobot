@@ -27,8 +27,9 @@ class EsyTooBot(sc2.BotAI):
     #
     async def on_step(self, iteration):
         await render(self)
-        if iteration == 0:
-            await workerRush(self)
+        await self.distribute_workers()
+        # if iteration == 0:
+        #     await workerRush(self)
 
 
 # Running this python file start a single game. This function is responsible for
@@ -45,8 +46,8 @@ class EsyTooBot(sc2.BotAI):
 #
 run_game(
     maps.get("(2)DreamcatcherLE"),
-    [Bot(Race.Zerg, EsyTooBot()),
-     Computer(Race.Protoss, Difficulty.Medium)
+    [Bot(Race.Protoss, EsyTooBot()),
+     Computer(Race.Zerg, Difficulty.Medium)
      ],
     realtime=False,
 )

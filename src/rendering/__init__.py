@@ -1,4 +1,5 @@
 from rendering.units import draw_units
+from rendering.map import size_mod
 import cv2
 import numpy as np
 
@@ -19,7 +20,7 @@ async def render(self):
 
     # flip horizontally to make our final fix in visual representation:
     flipped = cv2.flip(game_data, 0)
-    resized = cv2.resize(flipped, dsize=None, fx=4, fy=4)
+    resized = cv2.resize(flipped, dsize=None, fx=size_mod, fy=size_mod)
 
     cv2.imshow('Overview', resized)
     cv2.waitKey(1)
