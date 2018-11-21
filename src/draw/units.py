@@ -12,7 +12,7 @@ def draw_units(self, game_data):
     #         (0, 0, 255),
     #         -1
     #     )  # BGR
-    for unit in self.state.units
+    for unit in self.state.units:
         pos = unit.position
         cv2.circle(
             game_data,

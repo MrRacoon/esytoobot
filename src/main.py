@@ -40,7 +40,7 @@ class EsyTooBot(sc2.BotAI):
 
 
 run_game(
-    maps.get("DreamCatcherLE"),
+    maps.get("(2)DreamcatcherLE"),
     [Bot(Race.Protoss, EsyTooBot()),
      Computer(Race.Protoss, Difficulty.Medium)
      ],
