@@ -1,7 +1,7 @@
 import sc2
 from sc2 import run_game, maps, Race, Difficulty
 from sc2.player import Bot, Computer
-from draw import render
+from rendering import render
 from strategies import workerRush
 
 
@@ -45,7 +45,7 @@ class EsyTooBot(sc2.BotAI):
 #
 run_game(
     maps.get("(2)DreamcatcherLE"),
-    [Bot(Race.Protoss, EsyTooBot()),
+    [Bot(Race.Zerg, EsyTooBot()),
      Computer(Race.Protoss, Difficulty.Medium)
      ],
     realtime=False,

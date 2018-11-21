@@ -1,5 +1,4 @@
-from draw.buildings import draw_buildings
-from draw.units import draw_units
+from rendering.units import draw_units
 import cv2
 import numpy as np
 
@@ -15,7 +14,7 @@ async def render(self):
         (self.game_info.map_size[1], self.game_info.map_size[0], 3),
         np.uint8
     )
-    # draw_buildings(self, game_data)
+
     draw_units(self, game_data)
 
     # flip horizontally to make our final fix in visual representation:
