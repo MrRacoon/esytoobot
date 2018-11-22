@@ -1,27 +1,30 @@
-from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR, PHOTONCANNON, FORGE, CYBERNETICSCORE, STARGATE, VOIDRAY, GATEWAY
+from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR, PHOTONCANNON, FORGE, CYBERNETICSCORE, STARGATE, VOIDRAY, GATEWAY, ZEALOT
 
 
-# select and tell all workers to go rush the enepy base
 async def worker_rush(self):
     for worker in self.workers:
         await self.do(worker.attack(self.enemy_start_locations[0]))
 
 
-# Build more workers when the minerals are available
 async def build_workers(self):
     # nexus = command center
     for nexus in self.units(NEXUS).ready.noqueue:
-        if self.can_afford(PROBE) and self.units(PROBE).amount < 70:
+        if self.can_afford(PROBE) and self.units(PROBE).amount < self.MAX_WORKERS:
             print("Training", PROBE)
             await self.do(nexus.train(PROBE))
 
 
 async def build_pylons(self):
-    if self.supply_left < 5 and not self.already_pending(PYLON):
-        nexuses = self.units(NEXUS).ready
-        if nexuses.exists:
-            if self.can_afford(PYLON):
-                await self.build(PYLON, near=nexuses.random)
+    nexi = self.units(NEXUS)
+    if self.supply_left < self.MIN_SUPPLY:
+        if not self.already_pending(PYLON):
+            await self.build(PYLON, near=nexi.random, placement_step=self.BASE_STEP)
+    else:
+        for nexus in nexi:
+            pylons_at_nexus = self.units(PYLON).closer_than(self.BASE_RADIUS, nexus.position)
+            if pylons_at_nexus.amount < self.PYLONS_PER_NEXUS:
+                if not self.already_pending(PYLON):
+                    await self.build(PYLON, near=nexus, placement_step=self.BASE_STEP)
 
 
 async def build_assimilator(self):
@@ -39,7 +42,7 @@ async def build_assimilator(self):
 
 
 async def expand(self):
-    if self.can_afford(NEXUS) and not self.already_pending(NEXUS):
+    if self.NUM_BASE > self.units(NEXUS).amount and self.can_afford(NEXUS) and not self.already_pending(NEXUS):
         await self.expand_now()
 
 
@@ -59,19 +62,35 @@ async def turtle_up(self):
                 print("Building", PHOTONCANNON)
                 await self.build(PHOTONCANNON, near=pylon)
 
-async def build_offense(self):
+async def build_offense(self, iteration):
     pylons = self.units(PYLON).ready
 
-    # Void Rays
-    if self.units(STARGATE).ready.exists and self.units(VOIDRAY).amount < 5:
+    # Build Void Rays
+    if self.units(STARGATE).ready.exists:
         for sg in self.units(STARGATE).ready.noqueue:
             if self.can_afford(VOIDRAY):
                 print("TRAINING", VOIDRAY)
                 await self.do(sg.train(VOIDRAY))
 
+    if self.units(GATEWAY).ready.exists:
+        for gw in self.units(GATEWAY).ready.noqueue:
+            if self.units(ZEALOT).amount < 5 and self.can_afford(ZEALOT):
+                print("TRAINING", ZEALOT)
+                await self.do(gw.train(ZEALOT))
+
+    # Assemble, and Attack Move
+    if self.units(VOIDRAY).idle.amount > 2 and iteration % 50 == 0:
+        for vr in self.units(VOIDRAY).idle:
+            await self.do(vr.attack(self.select_target(self.enemy_start_locations[0])))
+
+    if self.units(ZEALOT).idle.amount > 1 and iteration % 50 == 0:
+        for vr in self.units(ZEALOT).idle:
+            await self.do(vr.attack(self.enemy_start_locations[0]))
+
+    # Macro
     if pylons.exists:
         pylon = pylons.random
-        if not self.units(GATEWAY).ready.exists:
+        if self.units(GATEWAY).amount < self.NUM_BASE * self.GATEWAY_PER_BASE:
             if self.can_afford(GATEWAY) and not self.already_pending(GATEWAY):
                 print("Building", GATEWAY)
                 await self.build(GATEWAY, near=pylon)
@@ -79,7 +98,7 @@ async def build_offense(self):
             if self.can_afford(CYBERNETICSCORE) and not self.already_pending(CYBERNETICSCORE):
                 print("Building", CYBERNETICSCORE)
                 await self.build(CYBERNETICSCORE, near=pylon)
-        elif not self.units(STARGATE).ready.exists:
+        elif self.units(STARGATE).amount < self.STARGATE_PER_BASE:
             if self.can_afford(STARGATE) and not self.already_pending(STARGATE):
                 print("Building", STARGATE)
                 await self.build(STARGATE, near=pylon)
