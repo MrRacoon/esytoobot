@@ -1,4 +1,4 @@
-from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR
+from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR, PHOTONCANNON, FORGE
 
 
 # select and tell all workers to go rush the enepy base
@@ -37,5 +37,20 @@ async def build_assimilator(self):
 
 
 async def expand(self):
-    if self.units(NEXUS).amount < 3 and self.can_afford(NEXUS):
+    if self.units(NEXUS).amount < 3 and self.can_afford(NEXUS) and not self.already_pending(NEXUS):
         await self.expand_now()
+
+
+async def turtle_up(self):
+    pylons = self.units(PYLON).ready
+    if pylons.exists:
+        pylon = pylons.random
+        if not self.units(FORGE).ready.exists:
+            if self.can_afford(FORGE) and not self.already_pending(FORGE):
+                await self.build(FORGE, near=pylon)
+        else:
+            can_afford_cannon = self.can_afford(PHOTONCANNON) 
+            less_cannons_than_pylons = self.units(PHOTONCANNON).amount < self.units(PYLON).amount
+            not_already_building_one = not self.already_pending(PHOTONCANNON)
+            if can_afford_cannon and less_cannons_than_pylons and not_already_building_one:
+                await self.build(PHOTONCANNON, near=pylon)
