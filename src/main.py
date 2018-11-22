@@ -2,7 +2,7 @@ import sc2
 from sc2 import run_game, maps, Race, Difficulty
 from sc2.player import Bot, Computer
 from rendering import render
-from strategies import workerRush
+from strategies import build_workers, build_pylons, build_assimilator, expand
 
 
 # The bot is described here.
@@ -26,10 +26,15 @@ class EsyTooBot(sc2.BotAI):
     # late game.
     #
     async def on_step(self, iteration):
+        # Rendering the game
         await render(self)
+
+        # Macro Force
         await self.distribute_workers()
-        # if iteration == 0:
-        #     await workerRush(self)
+        await build_workers(self)
+        await build_pylons(self)
+        await build_assimilator(self)
+        await expand(self)
 
 
 # Running this python file start a single game. This function is responsible for
