@@ -2,7 +2,7 @@ import sc2
 from sc2 import run_game, maps, Race, Difficulty
 from sc2.player import Bot, Computer
 from rendering import render
-from strategies import build_workers, build_pylons, build_assimilator, expand, turtle_up
+from strategies import build_workers, build_pylons, build_assimilator, expand, turtle_up, build_offense
 
 
 # The bot is described here.
@@ -35,6 +35,7 @@ class EsyTooBot(sc2.BotAI):
         await build_pylons(self)
         await build_assimilator(self)
         await turtle_up(self)
+        await build_offense(self)
         await expand(self)
 
 
