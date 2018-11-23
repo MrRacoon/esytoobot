@@ -1,5 +1,4 @@
 from rendering.units import draw_units
-from rendering.map import size_mod
 from cv2 import INTER_CUBIC
 import cv2
 import numpy as np
@@ -12,7 +11,7 @@ async def render(self):
     # https://github.com/Dentosal/python-sc2/blob/master/sc2/game_info.py#L162
 
     game_data = np.zeros(
-        (self.game_info.map_size[1] * size_mod, self.game_info.map_size[0] * size_mod, 3),
+        (self.game_info.map_size[1] * self.SIZE_MOD, self.game_info.map_size[0] * self.SIZE_MOD, 3),
         np.uint8
     )
 
@@ -23,8 +22,8 @@ async def render(self):
     resized = cv2.resize(
         flipped,
         dsize=(1000, 760),
-        fx=size_mod,
-        fy=size_mod,
+        fx=self.SIZE_MOD,
+        fy=self.SIZE_MOD,
         interpolation=INTER_CUBIC
     )
 
