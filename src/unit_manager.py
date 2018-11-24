@@ -9,11 +9,12 @@ class State(Enum):
     Collecting = 1,
     Attacking = 2,
 
-class GroupManager(sc2.BotAI):
+class ProtossBot(sc2.BotAI):
     def __init__(self):
         self._unit_map = {
-            ZEALOT: 2,
-            STALKER: 1,
+            ZEALOT: 3,
+            STALKER: 2,
+            VOIDRAY: 1,
         }
 
         self.units = []
@@ -81,6 +82,11 @@ class GroupManager(sc2.BotAI):
                     await self.build_structure(CYBERNETICSCORE)
                 else:
                     await self.train_unit(unit, GATEWAY)
+            if unit == VOIDRAY:
+                if not self.units(STARGATE).exists:
+                    await self.build_structure(STARGATE)
+                else:
+                    await self.train_unit(unit, STARGATE)
 
     async def build_near_pylon(self, unit, pylon, queue=1):
         if self.can_afford(unit):
@@ -100,8 +106,12 @@ class GroupManager(sc2.BotAI):
                     await self.build_near_pylon(struct, pylon, 1)
                 if struct == CYBERNETICSCORE:
                     if not self.units(GATEWAY).ready.exists:
-                        if not self.already_pending(GATEWAY):
-                            await self.build_structure(GATEWAY)
+                        await self.build_structure(GATEWAY)
+                    else:
+                        await self.build_near_pylon(struct, pylon, 1)
+                if struct == STARGATE:
+                    if not self.units(CYBERNETICSCORE).ready.exists:
+                        await self.build_structure(CYBERNETICSCORE)
                     else:
                         await self.build_near_pylon(struct, pylon, 1)
                         
