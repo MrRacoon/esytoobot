@@ -15,19 +15,21 @@ class GroupManager(sc2.BotAI):
             ZEALOT: 2,
             STALKER: 1,
         }
+
         self.units = []
         self.production_threshold = 2
 
         self.SIZE_MOD = 4
         self.ITERATIONS_PER_MINUTE = 165
 
-        self.MAX_WORKERS = 70
         self.MIN_SUPPLY = 6 # Min number of supply to trigger Pylon
 
         self.NUM_BASE = 3 # number of concurrent bases
+        self.WORKERS_PER_BASE = 22 # number of concurrent bases
         self.BASE_STEP = 8
         self.BASE_RADIUS = 15
         self.PYLONS_PER_NEXUS = 3
+        self.MAX_WORKERS = (self.NUM_BASE * self.WORKERS_PER_BASE)
 
         self.group_state = State.Collecting
         self.zone_radius = 5
@@ -57,12 +59,12 @@ class GroupManager(sc2.BotAI):
             print("Attacking")
             self.group_state = State.Attacking
 
-        await self.expand()
+        await self.expand_new_base()
         await self.order_units()
 
     def is_saturated(self, unit):
         unit_count = self.units(unit).amount
-        unit_threshold = self._unit_map.get(unit, 0) * (len(self.owned_expansions) + 1)
+        unit_threshold = self._unit_map.get(unit, 0)
         return unit_count >= unit_threshold
 
     async def build_unit(self, unit):
@@ -125,10 +127,11 @@ class GroupManager(sc2.BotAI):
 
     async def build_workers(self):
         # nexus = command center
-        for nexus in self.units(NEXUS).ready.noqueue:
-            if self.can_afford(PROBE) and self.units(PROBE).amount < self.MAX_WORKERS:
-                print("+", PROBE)
-                await self.do(nexus.train(PROBE))
+        if self.MAX_WORKERS > self.workers.amount:
+            for nexus in self.units(NEXUS).ready.noqueue:
+                if self.can_afford(PROBE) and self.units(PROBE).amount < self.MAX_WORKERS:
+                    print("+", PROBE)
+                    await self.do(nexus.train(PROBE))
 
     async def build_assimilator(self):
         for nexus in self.units(NEXUS).ready:
@@ -144,15 +147,24 @@ class GroupManager(sc2.BotAI):
                     await self.do(worker.build(ASSIMILATOR, vaspene))
 
 
-    async def expand(self):
-        if self.NUM_BASE > self.units(NEXUS).amount and self.can_afford(NEXUS) and not self.already_pending(NEXUS):
-            await self.expand_now()
+    async def expand_new_base(self):
+        if self.NUM_BASE > self.units(NEXUS).amount:
+            if self.can_afford(NEXUS):
+                if not self.already_pending(NEXUS):
+                    extra_workers = self.workers.amount - (self.units(NEXUS).amount * self.WORKERS_PER_BASE)
+                    if extra_workers > 0 or self.MAX_WORKERS == self.workers.amount:
+                            await self.expand_now()
     
+    ##########################################################################
+
     async def order_units(self):
         if self.group_state == State.Collecting:
-            await self.zone_at(self.main_base_ramp.top_center, self.zone_radius)
+            await self.zone_at(self.main_base_ramp.top_center)
         if self.group_state == State.Attacking:
             await self.attack_at(self.enemy_start_locations[0])
+
+    ##########################################################################
+    # All units move
 
     async def pinpoint_at(self, position):
         for unit_type in self._unit_map:
@@ -160,16 +172,21 @@ class GroupManager(sc2.BotAI):
                 print(">-", unit)
                 await self.do(unit.move(position))
     
-    async def zone_at(self, position, radius):
+    async def zone_at(self, position):
         for unit_type in self._unit_map:
-            for unit in self.units(unit_type).idle:
-                strays = self.units(unit_type).further_than(radius, position)
-                for unit in strays.idle:
-                    print(">o", unit)
-                    await self.do(unit.move(position))
+            strays = self.units(unit_type).further_than(self.zone_radius, position).idle
+            for unit in strays:
+                print(">o", unit)
+                await self.do(unit.move(position))
     
-    async def attack_at(self, position):
-        for unit_type in self._unit_map:
-            for unit in self.units(unit_type).idle:
+    async def attack_at(self, position, group=None):
+        if group is None:
+            for unit_type in self._unit_map:
+                strays = self.units(unit_type).further_than(self.zone_radius, position).idle
+                for unit in strays:
+                    print(">x", unit)
+                    await self.do(unit.attack(position))
+        else:
+            for unit in group:
                 print(">x", unit)
                 await self.do(unit.attack(position))

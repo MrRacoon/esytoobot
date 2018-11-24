@@ -23,3 +23,21 @@ cd esytoobot
 make        # Will enable the virtualenv and install the dependencies
 make start  # Starts SC2 and plays the bot
 ```
+
+
+Profiling
+---------
+
+```
+pip install snakeviz
+then in python
+import os
+
+os.system("py -3.7 -m cProfile -o run.prof run.py")
+os.system("snakeviz run.prof")
+
+after the game closes or you close it, your browser should display the profile results
+read more about snakeviz here https://jiffyclub.github.io/snakeviz/(edited)
+SnakeViz
+SnakeViz is a browser based graphical viewer for the output of Python's cProfile module.
+```
