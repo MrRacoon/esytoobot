@@ -1,13 +1,13 @@
 import sc2
 from sc2 import run_game, maps, Race, Difficulty
-from sc2.player import Bot, Computer
+from sc2.player import Human, Bot, Computer
 from unit_manager import ProtossBot
 
 run_game(
     maps.get("(2)DreamcatcherLE"), [
+        # Human(Race.Protoss),
         Bot(Race.Protoss, ProtossBot()),
-        # Human(Race.Terran),
-        Computer(Race.Zerg, Difficulty.Easy)
+        Computer(Race.Zerg, Difficulty.Easy),
      ],
     realtime=False,
 )

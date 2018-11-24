@@ -7,7 +7,9 @@ from enum import Enum
 
 class State(Enum):
     Collecting = 1,
-    Attacking = 2,
+    STAGING = 2
+    Attacking = 3,
+
 
 class ProtossBot(sc2.BotAI):
     def __init__(self):
@@ -23,7 +25,7 @@ class ProtossBot(sc2.BotAI):
         self.SIZE_MOD = 4
         self.ITERATIONS_PER_MINUTE = 165
 
-        self.MIN_SUPPLY = 6 # Min number of supply to trigger Pylon
+        self.MIN_SUPPLY_GAP = 6 # Min number of supply to trigger Pylon
 
         self.NUM_BASE = 3 # number of concurrent bases
         self.WORKERS_PER_BASE = 22 # number of concurrent bases
@@ -31,42 +33,55 @@ class ProtossBot(sc2.BotAI):
         self.BASE_RADIUS = 15
         self.PYLONS_PER_NEXUS = 3
         self.MAX_WORKERS = (self.NUM_BASE * self.WORKERS_PER_BASE)
+        
+        self.POP_TO_ATTACK_THRESHOLD = 0.5
 
         self.group_state = State.Collecting
         self.zone_radius = 5
+        self.worker_update_interval = 100
 
         self._saturated = False
         
-
+   ########################################################################### 
+   # The Machine
 
     async def on_step(self, iteration):
-        # Rendering the game
+        # Rendering the 2d game view
         await render(self)
 
-        if iteration % 100 == 0:
+        # Worker Management
+        if iteration % self.worker_update_interval == 0:
             await self.distribute_workers()
 
+        # Structural assurance
         await self.build_workers()
         await self.build_pylons()
         await self.build_assimilator()
 
-        saturated = True
-        for unit in self._unit_map:
-            if not self.is_saturated(unit):
-                saturated = False
-                await self.build_unit(unit)
-
-        if saturated and not self.group_state == "Attacking":
-            print("Attacking")
-            self.group_state = State.Attacking
+        # Unit Command
 
         await self.expand_new_base()
+        await self.provide_units()
         await self.order_units()
+
+   ########################################################################### 
+   # Economics
 
     def is_saturated(self, unit):
         unit_count = self.units(unit).amount
         unit_threshold = self._unit_map.get(unit, 0)
         return unit_count >= unit_threshold
+    
+    def population_progress(self):
+        total = 0
+        sum = 0
+        for unit, desired_amount in self._unit_map.items():
+            sum += self.units(unit).amount
+            total += desired_amount
+        return sum / total
+
+   ########################################################################### 
+   # Growth and Globalization
 
     async def build_unit(self, unit):
         if not self.already_pending(unit):
@@ -123,9 +138,12 @@ class ProtossBot(sc2.BotAI):
                 print("+", unit)
                 await self.do(ss.random.train(unit))
 
+   ########################################################################### 
+   # Dept of Infrastructure
+
     async def build_pylons(self):
         nexi = self.units(NEXUS)
-        if self.supply_left < self.MIN_SUPPLY:
+        if self.supply_left < self.MIN_SUPPLY_GAP:
             if not self.already_pending(PYLON):
                 await self.build(PYLON, near=nexi.random, placement_step=self.BASE_STEP)
         else:
@@ -166,23 +184,60 @@ class ProtossBot(sc2.BotAI):
                             await self.expand_now()
     
     ##########################################################################
+    # Politics
+
+    async def provide_units(self):
+        for unit in self._unit_map:
+            if not self.is_saturated(unit):
+                await self.build_unit(unit)
 
     async def order_units(self):
-        if self.group_state == State.Collecting:
-            await self.zone_at(self.main_base_ramp.top_center)
         if self.group_state == State.Attacking:
-            await self.attack_at(self.enemy_start_locations[0])
+            await self.attack_enemy_main()
+            if self.population_progress() < self.POP_TO_ATTACK_THRESHOLD:
+                self.group_state = State.Collecting
+
+        elif self.group_state == State.Collecting:
+            await self.rally_home()
+            if self.population_progress() > self.POP_TO_ATTACK_THRESHOLD:
+                self.group_state = State.STAGING
+
+        elif self.group_state == State.STAGING:
+            await self.control_zone(self._game_info.map_center)
+            in_zone = self.all_witin_zone(self._game_info.map_center)
+            if in_zone:
+                self.group_state = State.Attacking
+
+    
+    # Hot spots
+    
+    async def rally_home(self):
+        await self.zone_at(self.main_base_ramp.top_center)
+
+    async def control_zone(self, position):
+        await self.attack_at(position)
+
+    async def attack_enemy_main(self):
+        await self.control_zone(self.enemy_start_locations[0])
 
     ##########################################################################
-    # All units move
+    # Laws and Justice
+
+    async def all_witin_zone(self, position):
+        for unit_type in self._unit_map:
+            if self.units(unit_type).further_than(self.zone_radius, position).idle.exists:
+                return False
+        return True
 
     async def pinpoint_at(self, position):
+        "Move all idle units in the group exactly to the given position"
         for unit_type in self._unit_map:
             for unit in self.units(unit_type).idle:
                 print(">-", unit)
                 await self.do(unit.move(position))
     
-    async def zone_at(self, position):
+    async def zone_at(self, position, group=None):
+        "Move all idle units outside of the given zone, to rally to the zone"
         for unit_type in self._unit_map:
             strays = self.units(unit_type).further_than(self.zone_radius, position).idle
             for unit in strays:
@@ -190,6 +245,7 @@ class ProtossBot(sc2.BotAI):
                 await self.do(unit.move(position))
     
     async def attack_at(self, position, group=None):
+        "Send all idle units in the group to attack at a given place"
         if group is None:
             for unit_type in self._unit_map:
                 strays = self.units(unit_type).further_than(self.zone_radius, position).idle
