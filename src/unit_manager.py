@@ -34,7 +34,9 @@ class ProtossBot(sc2.BotAI):
         self.PYLONS_PER_NEXUS = 3
         self.MAX_WORKERS = (self.NUM_BASE * self.WORKERS_PER_BASE)
         
-        self.POP_TO_ATTACK_THRESHOLD = 0.5
+        self.POP_TO_RETREAT_THRESHOLD = 0.2
+        self.POP_TO_STAGE_THRESHOLD = 0.5
+        self.POP_TO_ATTACK_THRESHOLD = 1.0
 
         self.group_state = State.Collecting
         self.zone_radius = 5
@@ -59,10 +61,11 @@ class ProtossBot(sc2.BotAI):
         await self.build_assimilator()
 
         # Unit Command
-
-        await self.expand_new_base()
         await self.provide_units()
         await self.order_units()
+
+        # Expansion
+        await self.expand_new_base()
 
    ########################################################################### 
    # Economics
@@ -194,40 +197,52 @@ class ProtossBot(sc2.BotAI):
     async def order_units(self):
         if self.group_state == State.Attacking:
             await self.attack_enemy_main()
-            if self.population_progress() < self.POP_TO_ATTACK_THRESHOLD:
+            if self.population_progress() < self.POP_TO_RETREAT_THRESHOLD:
+                print('@collecting')
                 self.group_state = State.Collecting
 
         elif self.group_state == State.Collecting:
             await self.rally_home()
-            if self.population_progress() > self.POP_TO_ATTACK_THRESHOLD:
+            if self.population_progress() > self.POP_TO_STAGE_THRESHOLD:
+                print('@staging')
                 self.group_state = State.STAGING
 
         elif self.group_state == State.STAGING:
-            await self.control_zone(self._game_info.map_center)
-            in_zone = self.all_witin_zone(self._game_info.map_center)
-            if in_zone:
+            await self.control_middle()
+            if self.population_progress() >= self.POP_TO_ATTACK_THRESHOLD:
+                print('@attacking')
                 self.group_state = State.Attacking
 
+
+    # Spot intel
+    async def all_witin_zone(self, position):
+        for unit_type in self._unit_map:
+            if self.units(unit_type).further_than(self.zone_radius, position).idle.exists:
+                return False
+        return True
     
-    # Hot spots
+    async def all_witin_base(self):
+        return self.all_witin_zone(self.main_base_ramp.top_center)
+
+    async def all_within_middle(self):
+        return self.all_witin_zone(self._game_info.map_center)
+
     
+    # Spot migration
     async def rally_home(self):
         await self.zone_at(self.main_base_ramp.top_center)
 
     async def control_zone(self, position):
         await self.attack_at(position)
 
+    async def control_middle(self):
+        await self.control_zone(self._game_info.map_center)
+
     async def attack_enemy_main(self):
         await self.control_zone(self.enemy_start_locations[0])
 
     ##########################################################################
     # Laws and Justice
-
-    async def all_witin_zone(self, position):
-        for unit_type in self._unit_map:
-            if self.units(unit_type).further_than(self.zone_radius, position).idle.exists:
-                return False
-        return True
 
     async def pinpoint_at(self, position):
         "Move all idle units in the group exactly to the given position"
