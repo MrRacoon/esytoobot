@@ -5,14 +5,16 @@ from sc2.constants import NEXUS, PROBE, PYLON, ASSIMILATOR, PHOTONCANNON, \
 from rendering import render
 from enum import Enum
 
+
 class State(Enum):
-    Collecting = 1,
+    COLLECTING = 1,
     STAGING = 2
-    Attacking = 3,
+    ATTACKING = 3,
 
 
 class ProtossBot(sc2.BotAI):
     def __init__(self):
+
         self._unit_map = {
             ZEALOT: 3,
             STALKER: 2,
@@ -38,17 +40,20 @@ class ProtossBot(sc2.BotAI):
         self.POP_TO_STAGE_THRESHOLD = 0.5
         self.POP_TO_ATTACK_THRESHOLD = 1.0
 
-        self.group_state = State.Collecting
+        self.attack_squad = []
+
+        self.group_state = State.COLLECTING
         self.zone_radius = 5
         self.worker_update_interval = 100
 
         self._saturated = False
+
         
    ########################################################################### 
    # The Machine
 
     async def on_step(self, iteration):
-        # Rendering the 2d game view
+        # Rendering the 2D game view
         await render(self)
 
         # Worker Management
@@ -106,11 +111,13 @@ class ProtossBot(sc2.BotAI):
                 else:
                     await self.train_unit(unit, STARGATE)
 
+
     async def build_near_pylon(self, unit, pylon, queue=1):
         if self.can_afford(unit):
             if self.units(unit).not_ready.amount < queue:
                 print("+", unit)
                 await self.build(unit, near=pylon)
+
 
     async def build_structure(self, struct):
         if self.already_pending(struct):
@@ -195,13 +202,13 @@ class ProtossBot(sc2.BotAI):
                 await self.build_unit(unit)
 
     async def order_units(self):
-        if self.group_state == State.Attacking:
+        if self.group_state == State.ATTACKING:
             await self.attack_enemy_main()
             if self.population_progress() < self.POP_TO_RETREAT_THRESHOLD:
                 print('@collecting')
-                self.group_state = State.Collecting
+                self.group_state = State.COLLECTING
 
-        elif self.group_state == State.Collecting:
+        elif self.group_state == State.COLLECTING:
             await self.rally_home()
             if self.population_progress() > self.POP_TO_STAGE_THRESHOLD:
                 print('@staging')
@@ -211,10 +218,15 @@ class ProtossBot(sc2.BotAI):
             await self.control_middle()
             if self.population_progress() >= self.POP_TO_ATTACK_THRESHOLD:
                 print('@attacking')
-                self.group_state = State.Attacking
+                self.form_attack_squad()
+                self.group_state = State.ATTACKING
 
 
     # Spot intel
+    async def form_attack_squad(self):
+        for unit in self._unit_map:
+            self.attack_squad.extend(self.units(unit))
+
     async def all_witin_zone(self, position):
         for unit_type in self._unit_map:
             if self.units(unit_type).further_than(self.zone_radius, position).idle.exists:
